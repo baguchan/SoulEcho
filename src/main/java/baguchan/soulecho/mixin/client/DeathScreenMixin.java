@@ -3,14 +3,9 @@ package baguchan.soulecho.mixin.client;
 import baguchan.soulecho.SoulEcho;
 import baguchan.soulecho.api.IEcho;
 import baguchan.soulecho.message.CustomRespawnMessage;
-import com.google.common.collect.Lists;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.DeathScreen;
-import net.minecraft.client.gui.screens.GenericDirtMessageScreen;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.TitleScreen;
-import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -31,6 +26,9 @@ public class DeathScreenMixin extends Screen {
 	@Final
 	private boolean hardcore;
 
+	@Shadow
+	private Button exitToTitleButton;
+
 	protected DeathScreenMixin(Component p_96550_) {
 		super(p_96550_);
 	}
@@ -43,33 +41,28 @@ public class DeathScreenMixin extends Screen {
 		this.exitButtons.removeIf((button -> {
 			return true;
 		}));
-		this.exitButtons.add(this.addRenderableWidget(new Button(this.width / 2 - 100, this.height / 4 + 72, 200, 20, !((IEcho)this.minecraft.player).hasSoulEcho() && this.hardcore ? Component.translatable("deathScreen.spectate") : Component.translatable("deathScreen.respawn"), (p_95930_) -> {
-			if(!((IEcho)this.minecraft.player).hasSoulEcho()) {
+		Component component = !((IEcho) this.minecraft.player).hasSoulEcho() && this.hardcore ? Component.translatable("deathScreen.spectate") : Component.translatable("deathScreen.respawn");
+		this.exitButtons.add(this.addRenderableWidget(Button.builder(component, (p_95930_) -> {
+			if (!((IEcho) this.minecraft.player).hasSoulEcho()) {
 				this.minecraft.player.respawn();
 				this.minecraft.setScreen((Screen) null);
-			}else {
+			} else {
 				SoulEcho.CHANNEL.sendToServer(new CustomRespawnMessage(this.minecraft.player.getId()));
 				this.minecraft.setScreen((Screen) null);
 			}
-		})));
+		}).bounds(this.width / 2 - 100, this.height / 4 + 72, 200, 20).build()));
+		this.exitToTitleButton = this.addRenderableWidget(Button.builder(Component.translatable("deathScreen.titleScreen"), (p_262871_) -> {
+			this.minecraft.getReportingContext().draftReportHandled(this.minecraft, this, this::handleExitToTitleScreen, true);
+		}).bounds(this.width / 2 - 100, this.height / 4 + 96, 200, 20).build());
+		this.exitButtons.add(this.exitToTitleButton);
 
-		this.exitButtons.add(this.addRenderableWidget(new Button(this.width / 2 - 100, this.height / 4 + 96, 200, 20, Component.translatable("deathScreen.titleScreen"), (p_95925_) -> {
-			if (this.hardcore) {
-				confirmResult(true);
-				this.exitToTitleScreen();
-			} else {
-				ConfirmScreen confirmscreen = new ConfirmScreen(this::confirmResult, Component.translatable("deathScreen.quit.confirm"), CommonComponents.EMPTY, Component.translatable("deathScreen.titleScreen"), Component.translatable("deathScreen.respawn"));
-				this.minecraft.setScreen(confirmscreen);
-				confirmscreen.setDelay(20);
-			}
-		})));
+		for (Button button : this.exitButtons) {
+			button.active = false;
+		}
 	}
 
 	@Shadow
-	private void confirmResult(boolean p_95932_) {
-	}
+	private void handleExitToTitleScreen() {
 
-	@Shadow
-	private void exitToTitleScreen() {
 	}
 }
